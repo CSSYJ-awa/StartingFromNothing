@@ -79,6 +79,9 @@ static int heightAt(int x, int z) {
     return (int)h;
 }
 
+// Forward declaration
+static int getHeightAt(int x, int z);
+
 // Build visible faces mesh for a single chunk at origin (ox,oz) of size CX*CY*CZ
 static void buildChunkMeshAt(int ox, int oz, int CX, int CY, int CZ, std::vector<float>& outVerts) {
     outVerts.clear();
