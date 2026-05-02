@@ -73,5 +73,13 @@ target_link_libraries(main PRIVATE Vulkan::Vulkan glfw glm)
 target_compile_definitions(main PRIVATE ENABLE_VALIDATION=1)
 set_target_properties(main PROPERTIES OUTPUT_NAME "main")
 
-# Install target for convenience (optional)
-install(TARGETS main RUNTIME DESTINATION bin)
+# Voxel prototype target
+add_executable(voxel src/voxel_game.cpp ${GEN_INCLUDE_DIR}/vert_spv.h ${GEN_INCLUDE_DIR}/frag_spv.h)
+add_dependencies(voxel shaders_all)
+target_include_directories(voxel PRIVATE "${VULKAN_SDK}/Include" "${GEN_INCLUDE_DIR}")
+target_link_libraries(voxel PRIVATE Vulkan::Vulkan glfw glm)
+target_compile_definitions(voxel PRIVATE ENABLE_VALIDATION=1)
+set_target_properties(voxel PROPERTIES OUTPUT_NAME "voxel")
+
+# Install targets for convenience (optional)
+install(TARGETS main voxel RUNTIME DESTINATION bin)
