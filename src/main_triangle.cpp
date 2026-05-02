@@ -4,6 +4,9 @@
 #include <optional>
 #include <set>
 #include <cstring>
+#include <cstdint>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 #include "vert_spv.h"
@@ -130,7 +133,7 @@ int main() {
             // basic swapchain create (fixed format/extent for simplicity)
             VkSurfaceCapabilitiesKHR caps; vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &caps);
             swapchainExtent = {800,600};
-            VkSurfaceFormatKHR surfaceFormat{}; surfaceFormat.format = VK_FORMAT_B8G8R8A8_SRGB; surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+            VkSurfaceFormatKHR surfaceFormat{}; surfaceFormat.format = VK_FORMAT_B8G8R8A8_UNORM; surfaceFormat.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
             uint32_t imageCount = caps.minImageCount + 1; if (caps.maxImageCount>0 && imageCount>caps.maxImageCount) imageCount=caps.maxImageCount;
             VkSwapchainCreateInfoKHR sci{}; sci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR; sci.surface = surface; sci.minImageCount=imageCount; sci.imageFormat = surfaceFormat.format; sci.imageColorSpace = surfaceFormat.colorSpace; sci.imageExtent = swapchainExtent; sci.imageArrayLayers=1; sci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
             uint32_t qfIndices[] = {(uint32_t)graphicsFamily,(uint32_t)presentFamily}; if (graphicsFamily!=presentFamily){ sci.imageSharingMode = VK_SHARING_MODE_CONCURRENT; sci.queueFamilyIndexCount=2; sci.pQueueFamilyIndices = qfIndices; } else sci.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -159,11 +162,11 @@ int main() {
             VkViewport viewport{}; viewport.x=0; viewport.y=0; viewport.width=(float)swapchainExtent.width; viewport.height=(float)swapchainExtent.height; viewport.minDepth=0; viewport.maxDepth=1;
             VkRect2D scissor{}; scissor.offset={0,0}; scissor.extent=swapchainExtent;
             VkPipelineViewportStateCreateInfo vpstate{}; vpstate.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO; vpstate.viewportCount=1; vpstate.pViewports=&viewport; vpstate.scissorCount=1; vpstate.pScissors=&scissor;
-            VkPipelineRasterizationStateCreateInfo rast{}; rast.sType=VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO; rast.depthClampEnable=VK_FALSE; rast.rasterizerDiscardEnable=VK_FALSE; rast.polygonMode=VK_POLYGON_MODE_FILL; rast.lineWidth=1.0f; rast.cullMode=VK_CULL_MODE_BACK_BIT; rast.frontFace=VK_FRONT_FACE_COUNTER_CLOCKWISE; rast.depthBiasEnable=VK_FALSE;
+            VkPipelineRasterizationStateCreateInfo rast{}; rast.sType=VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO; rast.depthClampEnable=VK_FALSE; rast.rasterizerDiscardEnable=VK_FALSE; rast.polygonMode=VK_POLYGON_MODE_FILL; rast.lineWidth=1.0f; rast.cullMode=VK_CULL_MODE_NONE; rast.frontFace=VK_FRONT_FACE_COUNTER_CLOCKWISE; rast.depthBiasEnable=VK_FALSE;
             VkPipelineMultisampleStateCreateInfo ms{}; ms.sType=VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO; ms.sampleShadingEnable=VK_FALSE; ms.rasterizationSamples=VK_SAMPLE_COUNT_1_BIT;
             VkPipelineColorBlendAttachmentState cbatt{}; cbatt.colorWriteMask = VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT|VK_COLOR_COMPONENT_B_BIT|VK_COLOR_COMPONENT_A_BIT; cbatt.blendEnable=VK_FALSE;
             VkPipelineColorBlendStateCreateInfo cb{}; cb.sType=VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO; cb.logicOpEnable=VK_FALSE; cb.attachmentCount=1; cb.pAttachments=&cbatt;
-            VkPipelineLayoutCreateInfo plci{}; plci.sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO; if (vkCreatePipelineLayout(device, &plci, nullptr, &pipelineLayout)!=VK_SUCCESS) throw std::runtime_error("failed create pipeline layout");
+            VkPushConstantRange pcr{}; pcr.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; pcr.offset = 0; pcr.size = sizeof(float)*16; VkPipelineLayoutCreateInfo plci{}; plci.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO; plci.pushConstantRangeCount = 1; plci.pPushConstantRanges = &pcr; if (vkCreatePipelineLayout(device, &plci, nullptr, &pipelineLayout)!=VK_SUCCESS) throw std::runtime_error("failed create pipeline layout");
             VkGraphicsPipelineCreateInfo gpci{}; gpci.sType=VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO; gpci.stageCount=2; gpci.pStages=stages; gpci.pVertexInputState=&vp; gpci.pInputAssemblyState=&ia; gpci.pViewportState=&vpstate; gpci.pRasterizationState=&rast; gpci.pMultisampleState=&ms; gpci.pColorBlendState=&cb; gpci.layout=pipelineLayout; gpci.renderPass=renderPass; gpci.subpass=0;
             if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &gpci, nullptr, &graphicsPipeline) != VK_SUCCESS) throw std::runtime_error("failed to create pipeline");
             vkDestroyShaderModule(device, fragSm, nullptr); vkDestroyShaderModule(device, vertSm, nullptr);
@@ -177,7 +180,7 @@ int main() {
             if (vkCreateCommandPool(device, &cpci, nullptr, &commandPool)!=VK_SUCCESS) throw std::runtime_error("cmd pool");
             commandBuffers.resize(swapchainFramebuffers.size());
             VkCommandBufferAllocateInfo cbai{}; cbai.sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO; cbai.commandPool=commandPool; cbai.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY; cbai.commandBufferCount=(uint32_t)commandBuffers.size(); if (vkAllocateCommandBuffers(device, &cbai, commandBuffers.data())!=VK_SUCCESS) throw std::runtime_error("alloc cmds");
-            for (size_t i=0;i<commandBuffers.size();++i){ VkCommandBufferBeginInfo binfo{}; binfo.sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO; vkBeginCommandBuffer(commandBuffers[i], &binfo); VkRenderPassBeginInfo rpbi{}; rpbi.sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO; rpbi.renderPass=renderPass; rpbi.framebuffer=swapchainFramebuffers[i]; rpbi.renderArea.offset={0,0}; rpbi.renderArea.extent=swapchainExtent; VkClearValue clearVal = { {{0.0f,0.0f,0.0f,1.0f}} }; rpbi.clearValueCount=1; rpbi.pClearValues=&clearVal; vkCmdBeginRenderPass(commandBuffers[i], &rpbi, VK_SUBPASS_CONTENTS_INLINE); vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline); vkCmdDraw(commandBuffers[i], 3, 1, 0, 0); vkCmdEndRenderPass(commandBuffers[i]); if (vkEndCommandBuffer(commandBuffers[i])!=VK_SUCCESS) throw std::runtime_error("end cb"); }
+            // Command buffers will be (re)recorded each frame with updated camera push-constants.
             // recreate per-image signal semaphores to match swapchain images
             if (!renderFinishedSemaphores.empty()) {
                 for (auto s : renderFinishedSemaphores) vkDestroySemaphore(device, s, nullptr);
@@ -201,14 +204,30 @@ int main() {
         VkSemaphoreCreateInfo semci{}; semci.sType=VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
         VkFenceCreateInfo fci{}; fci.sType=VK_STRUCTURE_TYPE_FENCE_CREATE_INFO; fci.flags = VK_FENCE_CREATE_SIGNALED_BIT;
         for (int i=0;i<MAX_FRAMES_IN_FLIGHT;++i){ if (vkCreateSemaphore(device,&semci,nullptr,&imageAvailableSemaphores[i])!=VK_SUCCESS) throw std::runtime_error("sem create"); if (vkCreateFence(device,&fci,nullptr,&inFlightFences[i])!=VK_SUCCESS) throw std::runtime_error("fence create"); }
-        // create per-image renderFinishedSemaphores sized to commandBuffers (swapchain images)
-        renderFinishedSemaphores.resize(commandBuffers.size());
-        for (size_t i=0;i<renderFinishedSemaphores.size(); ++i) { if (vkCreateSemaphore(device,&semci,nullptr,&renderFinishedSemaphores[i])!=VK_SUCCESS) throw std::runtime_error("sem create"); }
+        // renderFinishedSemaphores were created by createSwapchainAndResources; ensure imagesInFlight sized
         imagesInFlight.resize(commandBuffers.size(), VK_NULL_HANDLE);
+        // Camera state for WASD movement
+        glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 2.0f);
+        float camYaw = -90.0f; // looking toward -Z
+        double lastTime = glfwGetTime();
+        const float moveSpeed = 2.5f; // units per second
+        
 
         size_t currentFrame = 0;
         while(!glfwWindowShouldClose(window)){
             glfwPollEvents();
+            // handle input
+            double now = glfwGetTime();
+            float dt = float(now - lastTime);
+            lastTime = now;
+            float yawRad = glm::radians(camYaw);
+            glm::vec3 forwardVec = glm::normalize(glm::vec3(cos(yawRad), 0.0f, sin(yawRad)));
+            glm::vec3 rightVec = glm::normalize(glm::cross(forwardVec, glm::vec3(0.0f,1.0f,0.0f)));
+            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camPos += forwardVec * moveSpeed * dt;
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camPos -= forwardVec * moveSpeed * dt;
+            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camPos += rightVec * moveSpeed * dt;
+            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camPos -= rightVec * moveSpeed * dt;
+
             vkWaitForFences(device,1,&inFlightFences[currentFrame],VK_TRUE,UINT64_MAX);
 
             uint32_t imageIndex;
@@ -229,6 +248,28 @@ int main() {
             imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
             vkResetFences(device,1,&inFlightFences[currentFrame]);
+
+            // (re)record command buffer for this image with updated camera push-constants
+            vkResetCommandBuffer(commandBuffers[imageIndex], 0);
+            VkCommandBufferBeginInfo binfo{}; binfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO; binfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+            if (vkBeginCommandBuffer(commandBuffers[imageIndex], &binfo) != VK_SUCCESS) throw std::runtime_error("begin cb");
+            VkRenderPassBeginInfo rpbi{}; rpbi.sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO; rpbi.renderPass=renderPass; rpbi.framebuffer=swapchainFramebuffers[imageIndex]; rpbi.renderArea.offset={0,0}; rpbi.renderArea.extent=swapchainExtent; VkClearValue clearVal = { {{0.2f,0.6f,0.8f,1.0f}} }; rpbi.clearValueCount=1; rpbi.pClearValues=&clearVal;
+            vkCmdBeginRenderPass(commandBuffers[imageIndex], &rpbi, VK_SUBPASS_CONTENTS_INLINE);
+            vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+            // compute MVP
+            float aspect = (float)swapchainExtent.width / (float)swapchainExtent.height;
+            glm::mat4 proj = glm::perspective(glm::radians(45.0f), aspect, 0.1f, 10.0f);
+            proj[1][1] *= -1; // Vulkan clip
+            glm::mat4 view = glm::lookAt(camPos, camPos + forwardVec, glm::vec3(0.0f,1.0f,0.0f));
+            glm::mat4 model = glm::mat4(1.0f);
+            glm::mat4 mvp = proj * view * model;
+            vkCmdPushConstants(commandBuffers[imageIndex], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mvp), &mvp);
+
+            vkCmdDraw(commandBuffers[imageIndex], 3, 1, 0, 0);
+            vkCmdEndRenderPass(commandBuffers[imageIndex]);
+            if (vkEndCommandBuffer(commandBuffers[imageIndex])!=VK_SUCCESS) throw std::runtime_error("end cb");
+
             VkSubmitInfo submit{}; submit.sType=VK_STRUCTURE_TYPE_SUBMIT_INFO;
             VkSemaphore waits[] = { imageAvailableSemaphores[currentFrame] };
             VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
@@ -251,6 +292,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        std::cerr << "Cleanup: inFlightFences handles:\n";
+        for (int i=0;i<MAX_FRAMES_IN_FLIGHT;++i) std::cerr << "  fence["<<i<<"]=" << (uint64_t)inFlightFences[i] << "\n";
+        std::cerr << "Cleanup: imageAvailableSemaphores handles:\n";
+        for (int i=0;i<MAX_FRAMES_IN_FLIGHT;++i) std::cerr << "  imgAvail["<<i<<"]=" << (uint64_t)imageAvailableSemaphores[i] << "\n";
+        std::cerr << "Cleanup: renderFinishedSemaphores handles:\n";
+        for (size_t i=0;i<renderFinishedSemaphores.size(); ++i) std::cerr << "  rendFin["<<i<<"]=" << (uint64_t)renderFinishedSemaphores[i] << "\n";
         for (int i=0;i<MAX_FRAMES_IN_FLIGHT;++i){ vkDestroyFence(device,inFlightFences[i],nullptr); vkDestroySemaphore(device,imageAvailableSemaphores[i],nullptr); }
         for (auto s : renderFinishedSemaphores) vkDestroySemaphore(device, s, nullptr);
         for (auto fb: swapchainFramebuffers) vkDestroyFramebuffer(device, fb, nullptr);
