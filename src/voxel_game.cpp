@@ -79,14 +79,6 @@ static int heightAt(int x, int z) {
     return (int)h;
 }
 
-// Query height allowing overrides from interactions
-static int getHeightAt(int x, int z) {
-    std::lock_guard<std::mutex> lk(g_overrideMutex);
-    auto it = g_heightOverrides.find({x,z});
-    if (it != g_heightOverrides.end()) return it->second;
-    return heightAt(x,z);
-}
-
 // Build visible faces mesh for a single chunk at origin (ox,oz) of size CX*CY*CZ
 static void buildChunkMeshAt(int ox, int oz, int CX, int CY, int CZ, std::vector<float>& outVerts) {
     outVerts.clear();
@@ -175,6 +167,14 @@ static std::map<std::pair<int,int>, int> g_heightOverrides; // (x,z) -> override
 static std::mutex g_overrideMutex;
 static std::atomic<bool> g_builderRunning{false};
 
+
+// Query height allowing overrides from interactions
+static int getHeightAt(int x, int z) {
+    std::lock_guard<std::mutex> lk(g_overrideMutex);
+    auto it = g_heightOverrides.find({x,z});
+    if (it != g_heightOverrides.end()) return it->second;
+    return heightAt(x,z);
+}
 
 // Helper: create host-visible vertex buffer and upload
 static void createVertexBuffer(VkPhysicalDevice physical, VkDevice device, const std::vector<float>& verts, VkBuffer& outBuf, VkDeviceMemory& outMem){
