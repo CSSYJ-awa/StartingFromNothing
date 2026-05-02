@@ -300,7 +300,7 @@ int main(){
         VkViewport vp{}; vp.x=0; vp.y=0; vp.width = (float)extent.width; vp.height = (float)extent.height; vp.minDepth=0.0f; vp.maxDepth=1.0f;
         VkRect2D scissor{}; scissor.offset={0,0}; scissor.extent=extent;
         VkPipelineViewportStateCreateInfo vpst{}; vpst.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO; vpst.viewportCount = 1; vpst.pViewports = &vp; vpst.scissorCount = 1; vpst.pScissors = &scissor;
-        VkPipelineRasterizationStateCreateInfo rast{}; rast.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO; rast.depthClampEnable=VK_FALSE; rast.rasterizerDiscardEnable=VK_FALSE; rast.polygonMode = VK_POLYGON_MODE_FILL; rast.lineWidth = 1.0f; rast.cullMode = VK_CULL_MODE_BACK_BIT; rast.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; rast.depthBiasEnable = VK_FALSE;
+        VkPipelineRasterizationStateCreateInfo rast{}; rast.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO; rast.depthClampEnable=VK_FALSE; rast.rasterizerDiscardEnable=VK_FALSE; rast.polygonMode = VK_POLYGON_MODE_FILL; rast.lineWidth = 1.0f; rast.cullMode = VK_CULL_MODE_BACK_BIT; rast.frontFace = VK_FRONT_FACE_CLOCKWISE; rast.depthBiasEnable = VK_FALSE;
         VkPipelineMultisampleStateCreateInfo ms{}; ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO; ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
         VkPipelineColorBlendAttachmentState cbatt{}; cbatt.colorWriteMask = VK_COLOR_COMPONENT_R_BIT|VK_COLOR_COMPONENT_G_BIT|VK_COLOR_COMPONENT_B_BIT|VK_COLOR_COMPONENT_A_BIT; cbatt.blendEnable = VK_FALSE;
         VkPipelineColorBlendStateCreateInfo cb{}; cb.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO; cb.attachmentCount = 1; cb.pAttachments = &cbatt;
