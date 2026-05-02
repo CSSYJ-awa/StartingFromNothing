@@ -1,0 +1,34 @@
+Validation: windows_get_device_registry_files: GUID for 7 is not SoftwareComponent skipping
+Validation: Searching for ICD drivers named .\nvoglv64.dll
+Validation: Searching for ICD drivers named .\amdvlk64.dll
+Validation: Loading layer library D:\Program Files\VulkanSDK\1.4.341.1\Bin\.\VkLayer_khronos_validation.dll
+Validation: Loading layer library C:\windows\System32\DriverStore\FileRepository\u0196733.inf_amd64_5da8e72fd423d5e7\B025562\.\amdvlk64.dll
+Validation: Loading layer library C:\windows\System32\DriverStore\FileRepository\nvhmi.inf_amd64_64b86849703ebc2c\.\nvoglv64.dll
+Validation: Loading layer library C:\windows\System32\DriverStore\FileRepository\nvhmi.inf_amd64_64b86849703ebc2c\.\nvoglv64.dll
+Debug messenger created
+Using GPU: AMD Radeon(TM) 610M
+Validation: vkDestroyBuffer(): can't be called on VkBuffer 0x1c000000001c that is currently in use by VkCommandBuffer 0x1f4b2973890.
+The Vulkan spec states: All submitted commands that refer to buffer, either directly or via a VkBufferView, must have completed execution (https://docs.vulkan.org/spec/latest/chapters/resources.html#VUID-vkDestroyBuffer-buffer-00922)
+Validation: vkDestroyBuffer(): can't be called on VkBuffer 0x1e000000001e that is currently in use by VkCommandBuffer 0x1f4b2973890.
+The Vulkan spec states: All submitted commands that refer to buffer, either directly or via a VkBufferView, must have completed execution (https://docs.vulkan.org/spec/latest/chapters/resources.html#VUID-vkDestroyBuffer-buffer-00922)
+Validation: vkDestroyBuffer(): can't be called on VkBuffer 0x200000000020 that is currently in use by VkCommandBuffer 0x1f4b2973890.
+The Vulkan spec states: All submitted commands that refer to buffer, either directly or via a VkBufferView, must have completed execution (https://docs.vulkan.org/spec/latest/chapters/resources.html#VUID-vkDestroyBuffer-buffer-00922)
+Validation: vkDestroyBuffer(): can't be called on VkBuffer 0x220000000022 that is currently in use by VkCommandBuffer 0x1f4b2973890.
+The Vulkan spec states: All submitted commands that refer to buffer, either directly or via a VkBufferView, must have completed execution (https://docs.vulkan.org/spec/latest/chapters/resources.html#VUID-vkDestroyBuffer-buffer-00922)
+Validation: vkDestroyBuffer(): can't be called on VkBuffer 0x240000000024 that is currently in use by VkCommandBuffer 0x1f4b2973890.
+The Vulkan spec states: All submitted commands that refer to buffer, either directly or via a VkBufferView, must have completed execution (https://docs.vulkan.org/spec/latest/chapters/resources.html#VUID-vkDestroyBuffer-buffer-00922)
+Validation: vkDestroyBuffer(): can't be called on VkBuffer 0x260000000026 that is currently in use by VkCommandBuffer 0x1f4b2973890.
+The Vulkan spec states: All submitted commands that refer to buffer, either directly or via a VkBufferView, must have completed execution (https://docs.vulkan.org/spec/latest/chapters/resources.html#VUID-vkDestroyBuffer-buffer-00922)
+Validation: vkDestroyBuffer(): can't be called on VkBuffer 0x280000000028 that is currently in use by VkCommandBuffer 0x1f4b2973890.
+The Vulkan spec states: All submitted commands that refer to buffer, either directly or via a VkBufferView, must have completed execution (https://docs.vulkan.org/spec/latest/chapters/resources.html#VUID-vkDestroyBuffer-buffer-00922)
+Validation: vkDestroyBuffer(): can't be called on VkBuffer 0x2a000000002a that is currently in use by VkCommandBuffer 0x1f4b2973890.
+The Vulkan spec states: All submitted commands that refer to buffer, either directly or via a VkBufferView, must have completed execution (https://docs.vulkan.org/spec/latest/chapters/resources.html#VUID-vkDestroyBuffer-buffer-00922)
+Validation: vkDestroyBuffer(): can't be called on VkBuffer 0x2c000000002c that is currently in use by VkCommandBuffer 0x1f4b2973890.
+The Vulkan spec states: All submitted commands that refer to buffer, either directly or via a VkBufferView, must have completed execution (https://docs.vulkan.org/spec/latest/chapters/resources.html#VUID-vkDestroyBuffer-buffer-00922)
+Validation: (Warning - This VUID has now been reported 10 times, which is the duplicate_message_limit value, this will be the last time reporting it).
+vkDestroyBuffer(): can't be called on VkBuffer 0x2e000000002e that is currently in use by VkCommandBuffer 0x1f4b2973890.
+The Vulkan spec states: All submitted commands that refer to buffer, either directly or via a VkBufferView, must have completed execution (https://docs.vulkan.org/spec/latest/chapters/resources.html#VUID-vkDestroyBuffer-buffer-00922)
+Validation: Unloading layer library C:\windows\System32\DriverStore\FileRepository\nvhmi.inf_amd64_64b86849703ebc2c\nvoglv64.dll
+Validation: Unloading layer library C:\windows\System32\DriverStore\FileRepository\nvhmi.inf_amd64_64b86849703ebc2c\nvoglv64.dll
+Validation: Unloading layer library C:\windows\System32\DriverStore\FileRepository\u0196733.inf_amd64_5da8e72fd423d5e7\B025562\amdvlk64.dll
+Validation: Unloading layer library D:\Program Files\VulkanSDK\1.4.341.1\Bin\VkLayer_khronos_validation.dll
