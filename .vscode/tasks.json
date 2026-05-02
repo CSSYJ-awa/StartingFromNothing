@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Vulkan (MinGW)",
+      "type": "shell",
+      "command": "build_vulkan_mingw.bat",
+      "problemMatcher": [],
+      "inAgents": true
+    },
+    {
+      "label": "Build simple C++ (MinGW)",
+      "type": "shell",
+      "command": "build_cpp_mingw.bat",
+      "problemMatcher": [],
+      "inAgents": true
+    },
+    {
+      "label": "Run main.exe (Vulkan)",
+      "type": "shell",
+      "command": "build\\main.exe",
+      "problemMatcher": [],
+      "inAgents": true
+    },
+    {
+      "label": "Quick clone GLFW+GLM",
+      "type": "shell",
+      "command": "quick_clone_deps.bat",
+      "problemMatcher": [],
+      "inAgents": true
+    },
+    {
+      "label": "Update and cleanup GLFW+GLM",
+      "type": "shell",
+      "command": "update_and_cleanup_deps.bat",
+      "problemMatcher": [],
+      "inAgents": true
+    }
+  ]
+}
