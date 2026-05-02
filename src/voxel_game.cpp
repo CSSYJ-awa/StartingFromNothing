@@ -96,12 +96,26 @@ static void buildChunkMeshAt(int ox, int oz, int CX, int CY, int CZ, std::vector
         auto pushV = [&](glm::vec3 v){ outVerts.push_back(v.x); outVerts.push_back(v.y); outVerts.push_back(v.z); };
         auto pushN = [&](glm::vec3 n){ outVerts.push_back(n.x); outVerts.push_back(n.y); outVerts.push_back(n.z); };
         auto pushC = [&](glm::vec3 ccol){ outVerts.push_back(ccol.r); outVerts.push_back(ccol.g); outVerts.push_back(ccol.b); };
-        pushV(a); pushN(normal); pushC(color);
-        pushV(b); pushN(normal); pushC(color);
-        pushV(c); pushN(normal); pushC(color);
-        pushV(a); pushN(normal); pushC(color);
-        pushV(c); pushN(normal); pushC(color);
-        pushV(d); pushN(normal); pushC(color);
+        // compute triangle normal for first triangle (b - a) x (c - a)
+        glm::vec3 tri = glm::cross(b - a, c - a);
+        float dt = glm::dot(tri, normal);
+        if (dt >= 0.0f) {
+            // current winding matches desired normal
+            pushV(a); pushN(normal); pushC(color);
+            pushV(b); pushN(normal); pushC(color);
+            pushV(c); pushN(normal); pushC(color);
+            pushV(a); pushN(normal); pushC(color);
+            pushV(c); pushN(normal); pushC(color);
+            pushV(d); pushN(normal); pushC(color);
+        } else {
+            // flip winding so generated triangle normal aligns with provided normal
+            pushV(a); pushN(normal); pushC(color);
+            pushV(c); pushN(normal); pushC(color);
+            pushV(b); pushN(normal); pushC(color);
+            pushV(a); pushN(normal); pushC(color);
+            pushV(d); pushN(normal); pushC(color);
+            pushV(c); pushN(normal); pushC(color);
+        }
     };
     for(int x=0;x<CX;++x){
         for(int z=0;z<CZ;++z){
