@@ -79,6 +79,17 @@ static int heightAt(int x, int z) {
     return (int)h;
 }
 
+// Globals for background build + interaction
+static std::mutex g_buildMutex;
+static std::condition_variable g_buildCv;
+static std::deque<std::pair<int,int>> g_buildQueue; // ox, oz to build
+struct BuiltChunk { int ox; int oz; std::vector<float> verts; uint32_t vertexCount; };
+static std::deque<BuiltChunk> g_readyChunks;
+static std::mutex g_readyMutex;
+static std::map<std::pair<int,int>, int> g_heightOverrides; // (x,z) -> override height
+static std::mutex g_overrideMutex;
+static std::atomic<bool> g_builderRunning{false};
+
 // Query height allowing overrides from interactions
 static int getHeightAt(int x, int z) {
     std::lock_guard<std::mutex> lk(g_overrideMutex);
@@ -173,7 +184,7 @@ static std::deque<BuiltChunk> g_readyChunks;
 static std::mutex g_readyMutex;
 static std::map<std::pair<int,int>, int> g_heightOverrides; // (x,z) -> override height
 static std::mutex g_overrideMutex;
-static std::atomic<bool> g_builderRunning{false};
+
 
 // Helper: create host-visible vertex buffer and upload
 static void createVertexBuffer(VkPhysicalDevice physical, VkDevice device, const std::vector<float>& verts, VkBuffer& outBuf, VkDeviceMemory& outMem){
