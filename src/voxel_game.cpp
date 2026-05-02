@@ -9,6 +9,12 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
 #include "vert_spv.h"
 #include "frag_spv.h"
 #include <thread>
@@ -104,11 +110,11 @@ static void buildChunkMeshAt(int ox, int oz, int CX, int CY, int CZ, std::vector
             int h = getHeightAt(worldX, worldZ);
             for(int y=0;y<=h && y<CY;++y){
                 auto isEmpty = [&](int nx,int ny,int nz)->bool{
+                    // Always check neighbor using global world coordinates so chunk borders query adjacent chunks
                     int wx = ox + nx; int wz = oz + nz;
-                    if (nx<0||nx>=CX||nz<0||nz>=CZ) return true;
-                    if (ny<0||ny>=CY) return true;
-                    int hh = getHeightAt(wx,wz);
-                    return ny>hh;
+                    if (ny < 0 || ny >= CY) return true; // outside vertical bounds -> empty
+                    int hh = getHeightAt(wx, wz);
+                    return ny > hh; // empty if above terrain height
                 };
                 float fx = (float)worldX;
                 float fy = (float)y;
@@ -460,9 +466,25 @@ int main(){
             }
 
             // handle mouse interactions (edge-triggered)
-            static bool prevLeft = false, prevRight = false;
+            static bool prevLeft = false, prevRight = false, prevEsc = false;
             int leftState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
             int rightState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+            int escState = glfwGetKey(window, GLFW_KEY_ESCAPE);
+            if (escState == GLFW_PRESS && !prevEsc) {
+#ifdef _WIN32
+                // simple native menu dialog with "退出游戏" option
+                // show cursor while in menu
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                int resp = MessageBoxA(NULL, "菜单\n\n按 OK 退出游戏，按 Cancel 返回游戏", "菜单", MB_OKCANCEL | MB_TOPMOST | MB_SETFOREGROUND | MB_TASKMODAL);
+                if (resp == IDOK) {
+                    // request window close and break main loop
+                    glfwSetWindowShouldClose(window, GLFW_TRUE);
+                }
+                // restore cursor mode
+                if (!glfwWindowShouldClose(window)) glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+#endif
+            }
+            prevEsc = (escState == GLFW_PRESS);
             if (leftState == GLFW_PRESS && !prevLeft) {
                 // raycast and remove first solid block hit
                 for(float t=0.0f; t<6.0f; t+=0.1f){
