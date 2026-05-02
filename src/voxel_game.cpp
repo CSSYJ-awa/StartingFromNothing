@@ -15,6 +15,11 @@
 #include <chrono>
 #include <cmath>
 #include <algorithm>
+#include <mutex>
+#include <condition_variable>
+#include <map>
+#include <deque>
+#include <atomic>
 
 #ifdef ENABLE_VALIDATION
 const std::vector<const char*> validationLayers = {"VK_LAYER_KHRONOS_validation"};
@@ -74,6 +79,14 @@ static int heightAt(int x, int z) {
     return (int)h;
 }
 
+// Query height allowing overrides from interactions
+static int getHeightAt(int x, int z) {
+    std::lock_guard<std::mutex> lk(g_overrideMutex);
+    auto it = g_heightOverrides.find({x,z});
+    if (it != g_heightOverrides.end()) return it->second;
+    return heightAt(x,z);
+}
+
 // Build visible faces mesh for a single chunk at origin (ox,oz) of size CX*CY*CZ
 static void buildChunkMeshAt(int ox, int oz, int CX, int CY, int CZ, std::vector<float>& outVerts) {
     outVerts.clear();
@@ -93,13 +106,13 @@ static void buildChunkMeshAt(int ox, int oz, int CX, int CY, int CZ, std::vector
         for(int z=0;z<CZ;++z){
             int worldX = ox + x;
             int worldZ = oz + z;
-            int h = heightAt(worldX, worldZ);
+            int h = getHeightAt(worldX, worldZ);
             for(int y=0;y<=h && y<CY;++y){
                 auto isEmpty = [&](int nx,int ny,int nz)->bool{
                     int wx = ox + nx; int wz = oz + nz;
                     if (nx<0||nx>=CX||nz<0||nz>=CZ) return true;
                     if (ny<0||ny>=CY) return true;
-                    int hh = heightAt(wx,wz);
+                    int hh = getHeightAt(wx,wz);
                     return ny>hh;
                 };
                 float fx = (float)worldX;
@@ -150,6 +163,17 @@ struct Chunk {
     uint32_t vertexCount = 0; // number of vertices (not floats)
     bool uploaded = false;
 };
+
+// Globals for background build + interaction
+static std::mutex g_buildMutex;
+static std::condition_variable g_buildCv;
+static std::deque<std::pair<int,int>> g_buildQueue; // ox, oz to build
+struct BuiltChunk { int ox; int oz; std::vector<float> verts; uint32_t vertexCount; };
+static std::deque<BuiltChunk> g_readyChunks;
+static std::mutex g_readyMutex;
+static std::map<std::pair<int,int>, int> g_heightOverrides; // (x,z) -> override height
+static std::mutex g_overrideMutex;
+static std::atomic<bool> g_builderRunning{false};
 
 // Helper: create host-visible vertex buffer and upload
 static void createVertexBuffer(VkPhysicalDevice physical, VkDevice device, const std::vector<float>& verts, VkBuffer& outBuf, VkDeviceMemory& outMem){
@@ -298,6 +322,27 @@ int main(){
         int centerOz = - (grid/2) * CHUNK_SIZE;
         for(int gz=0; gz<grid; ++gz){ for(int gx=0; gx<grid; ++gx){ Chunk c; c.ox = centerOx + gx*CHUNK_SIZE; c.oz = centerOz + gz*CHUNK_SIZE; buildChunkMeshAt(c.ox, c.oz, CHUNK_SIZE, CHUNK_HEIGHT, CHUNK_SIZE, c.verts); c.vertexCount = (uint32_t)(c.verts.size() / 9); if (!c.verts.empty()) createVertexBuffer(physical, device, c.verts, c.vb, c.vmem), c.uploaded = true; chunks.push_back(std::move(c)); }}
 
+        // Start background builder thread (will build meshes on demand)
+        g_builderRunning = true;
+        std::thread builderThread([&](){
+            while (g_builderRunning) {
+                std::pair<int,int> task;
+                {
+                    std::unique_lock<std::mutex> lk(g_buildMutex);
+                    g_buildCv.wait(lk, [&]{ return !g_buildQueue.empty() || !g_builderRunning; });
+                    if (!g_builderRunning) break;
+                    task = g_buildQueue.front(); g_buildQueue.pop_front();
+                }
+                BuiltChunk bc; bc.ox = task.first; bc.oz = task.second;
+                buildChunkMeshAt(bc.ox, bc.oz, CHUNK_SIZE, CHUNK_HEIGHT, CHUNK_SIZE, bc.verts);
+                bc.vertexCount = (uint32_t)(bc.verts.size() / 9);
+                {
+                    std::lock_guard<std::mutex> lk2(g_readyMutex);
+                    g_readyChunks.push_back(std::move(bc));
+                }
+            }
+        });
+
         // Simple physics loop with AABB collision against unit blocks
         glm::vec3 playerPos = glm::vec3(0.0f + CHUNK_SIZE*grid/2.0f, 20.0f, 0.0f + CHUNK_SIZE*grid/2.0f);
         glm::vec3 playerVel = glm::vec3(0.0f);
@@ -338,7 +383,7 @@ int main(){
             playerVel.y += gravity * dt;
 
             // helpers (world bounds approximate)
-            auto isSolidBlockAt = [&](int bx,int by,int bz)->bool{ int wx = bx; int wz = bz; if (by<0||by>=CHUNK_HEIGHT) return false; int hh = heightAt(wx,wz); return by<=hh; };
+            auto isSolidBlockAt = [&](int bx,int by,int bz)->bool{ int wx = bx; int wz = bz; if (by<0||by>=CHUNK_HEIGHT) return false; int hh = getHeightAt(wx,wz); return by<=hh; };
             auto aabbIntersectsBlock = [&](glm::vec3 pos, int bx, int by, int bz)->bool{
                 float minX = pos.x - playerHalfWidth; float maxX = pos.x + playerHalfWidth;
                 float minY = pos.y; float maxY = pos.y + playerHeight;
@@ -392,6 +437,63 @@ int main(){
             proj[1][1] *= -1; // Vulkan clip
             glm::mat4 vp = proj * view;
 
+            // process any built chunks from background thread and upload
+            {
+                std::lock_guard<std::mutex> lk(g_readyMutex);
+                while(!g_readyChunks.empty()){
+                    BuiltChunk bc = std::move(g_readyChunks.front()); g_readyChunks.pop_front();
+                    for(auto &c : chunks){
+                        if (c.ox == bc.ox && c.oz == bc.oz){
+                            if (c.vb != VK_NULL_HANDLE) vkDestroyBuffer(device, c.vb, nullptr);
+                            if (c.vmem != VK_NULL_HANDLE) vkFreeMemory(device, c.vmem, nullptr);
+                            c.verts = std::move(bc.verts);
+                            c.vertexCount = bc.vertexCount;
+                            if (!c.verts.empty()) { createVertexBuffer(physical, device, c.verts, c.vb, c.vmem); c.uploaded = true; } else { c.uploaded = false; }
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // handle mouse interactions (edge-triggered)
+            static bool prevLeft = false, prevRight = false;
+            int leftState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+            int rightState = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+            if (leftState == GLFW_PRESS && !prevLeft) {
+                // raycast and remove first solid block hit
+                for(float t=0.0f; t<6.0f; t+=0.1f){
+                    glm::vec3 p = eye + lookDir * t;
+                    int bx = (int)floor(p.x); int by = (int)floor(p.y); int bz = (int)floor(p.z);
+                    int h = getHeightAt(bx,bz);
+                    if (by <= h){
+                        std::lock_guard<std::mutex> ol(g_overrideMutex);
+                        g_heightOverrides[{bx,bz}] = h-1;
+                        int cx = (int)floor((float)bx / CHUNK_SIZE); int cz = (int)floor((float)bz / CHUNK_SIZE);
+                        int ox = cx * CHUNK_SIZE; int oz = cz * CHUNK_SIZE;
+                        { std::lock_guard<std::mutex> bl(g_buildMutex); g_buildQueue.emplace_back(ox,oz); g_buildCv.notify_one(); }
+                        break;
+                    }
+                }
+            }
+            if (rightState == GLFW_PRESS && !prevRight) {
+                // raycast and place block on top of column
+                for(float t=0.0f; t<6.0f; t+=0.1f){
+                    glm::vec3 p = eye + lookDir * t;
+                    int bx = (int)floor(p.x); int bz = (int)floor(p.z);
+                    int h = getHeightAt(bx,bz);
+                    if (h+1 < CHUNK_HEIGHT){
+                        std::lock_guard<std::mutex> ol(g_overrideMutex);
+                        g_heightOverrides[{bx,bz}] = h+1;
+                        int cx = (int)floor((float)bx / CHUNK_SIZE); int cz = (int)floor((float)bz / CHUNK_SIZE);
+                        int ox = cx * CHUNK_SIZE; int oz = cz * CHUNK_SIZE;
+                        { std::lock_guard<std::mutex> bl(g_buildMutex); g_buildQueue.emplace_back(ox,oz); g_buildCv.notify_one(); }
+                        break;
+                    }
+                }
+            }
+            prevLeft = (leftState == GLFW_PRESS);
+            prevRight = (rightState == GLFW_PRESS);
+
             // draw frame
             vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
             vkResetFences(device, 1, &inFlightFences[currentFrame]);
@@ -426,7 +528,10 @@ int main(){
             std::this_thread::sleep_for(std::chrono::milliseconds(5));
         }
 
-        // cleanup chunks
+        // Stop builder thread and cleanup chunks
+        g_builderRunning = false;
+        g_buildCv.notify_all();
+        try { if (builderThread.joinable()) builderThread.join(); } catch(...) {}
         for(auto &c: chunks){ if (c.vb!=VK_NULL_HANDLE) vkDestroyBuffer(device, c.vb, nullptr); if (c.vmem!=VK_NULL_HANDLE) vkFreeMemory(device, c.vmem, nullptr); }
 
         // Cleanup
