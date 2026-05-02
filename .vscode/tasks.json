@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Vulkan (MinGW)",
+      "type": "shell",
+      "command": "build_vulkan_mingw.bat",
+      "problemMatcher": [],
+      "inAgents": true
+    },
+    {
+      "label": "Build simple C++ (MinGW)",
+      "type": "shell",
+      "command": "build_cpp_mingw.bat",
+      "problemMatcher": [],
+      "inAgents": true
+    },
+    {
+      "label": "Run main.exe (Vulkan)",
+      "type": "shell",
+      "command": "build\\main.exe",
+      "problemMatcher": [],
+      "inAgents": true
+    },
+    {
+      "label": "Build & Run Voxel Prototype",
+      "type": "shell",
+      "command": "cmake -G \"MinGW Makefiles\" -S . -B build -DVULKAN_SDK=\"D:\\Program Files\\VulkanSDK\\1.4.341.1\" -DCMAKE_BUILD_TYPE=Debug && cmake --build build --target voxel -- -j %NUMBER_OF_PROCESSORS% && start \"voxel_run\" /b cmd /c \"build\\voxel.exe > build\\voxel_stdout.txt 2> build\\voxel_stderr.txt\"",
+      "problemMatcher": [],
+      "inAgents": true
+    },
+    {
+      "label": "Quick clone GLFW+GLM",
+      "type": "shell",
+      "command": "quick_clone_deps.bat",
+      "problemMatcher": [],
+      "inAgents": true
+    },
+    {
+      "label": "Update and cleanup GLFW+GLM",
+      "type": "shell",
+      "command": "update_and_cleanup_deps.bat",
+      "problemMatcher": [],
+      "inAgents": true
+    }
+  ]
+}
