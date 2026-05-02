@@ -27,6 +27,24 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
+// Mouse-look globals
+static float g_camYaw = -90.0f;
+static float g_camPitch = 0.0f;
+static double g_lastX = 400.0, g_lastY = 300.0;
+static bool g_firstMouse = true;
+
+static void cursor_pos_callback(GLFWwindow* window, double xpos, double ypos) {
+    if (g_firstMouse) { g_lastX = xpos; g_lastY = ypos; g_firstMouse = false; }
+    double xoffset = xpos - g_lastX;
+    double yoffset = g_lastY - ypos; // reversed: y ranges top to bottom
+    g_lastX = xpos; g_lastY = ypos;
+    const float sensitivity = 0.1f;
+    g_camYaw += (float)xoffset * sensitivity;
+    g_camPitch += (float)yoffset * sensitivity;
+    if (g_camPitch > 89.0f) g_camPitch = 89.0f;
+    if (g_camPitch < -89.0f) g_camPitch = -89.0f;
+}
+
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
                                       const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger) {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
@@ -100,6 +118,49 @@ int main() {
         float priority=1.0f; std::set<int> families = {graphicsFamily, presentFamily}; std::vector<VkDeviceQueueCreateInfo> qcis; for (int f: families){ VkDeviceQueueCreateInfo qci{}; qci.sType=VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO; qci.queueFamilyIndex=f; qci.queueCount=1; qci.pQueuePriorities=&priority; qcis.push_back(qci);} 
         VkDevice device; VkDeviceCreateInfo dci{}; dci.sType=VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO; dci.queueCreateInfoCount=(uint32_t)qcis.size(); dci.pQueueCreateInfos=qcis.data(); const char* devExts[] = { VK_KHR_SWAPCHAIN_EXTENSION_NAME }; dci.enabledExtensionCount=1; dci.ppEnabledExtensionNames=devExts; if (vkCreateDevice(physical, &dci, nullptr, &device)!=VK_SUCCESS) throw std::runtime_error("Failed to create device");
         VkQueue graphicsQueue; vkGetDeviceQueue(device, graphicsFamily, 0, &graphicsQueue); VkQueue presentQueue; vkGetDeviceQueue(device, presentFamily, 0, &presentQueue);
+        VkBuffer vertexBuffer = VK_NULL_HANDLE;
+        VkDeviceMemory vertexBufferMemory = VK_NULL_HANDLE;
+        // Create a simple vertex buffer for a colored cube (36 vertices)
+        {
+            const std::vector<float> vertices = {
+                // positions (x,y,z) - 12 triangles * 3 vertices = 36
+                // front face
+                -0.5f,-0.5f, 0.5f,  0.5f,-0.5f, 0.5f,  0.5f, 0.5f, 0.5f,
+                -0.5f,-0.5f, 0.5f,  0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f,
+                // back face
+                -0.5f,-0.5f,-0.5f, -0.5f, 0.5f,-0.5f,  0.5f, 0.5f,-0.5f,
+                -0.5f,-0.5f,-0.5f,  0.5f, 0.5f,-0.5f,  0.5f,-0.5f,-0.5f,
+                // left face
+                -0.5f,-0.5f,-0.5f, -0.5f,-0.5f, 0.5f, -0.5f, 0.5f, 0.5f,
+                -0.5f,-0.5f,-0.5f, -0.5f, 0.5f, 0.5f, -0.5f, 0.5f,-0.5f,
+                // right face
+                 0.5f,-0.5f,-0.5f,  0.5f, 0.5f,-0.5f,  0.5f, 0.5f, 0.5f,
+                 0.5f,-0.5f,-0.5f,  0.5f, 0.5f, 0.5f,  0.5f,-0.5f, 0.5f,
+                // top face
+                -0.5f, 0.5f,-0.5f, -0.5f, 0.5f, 0.5f,  0.5f, 0.5f, 0.5f,
+                -0.5f, 0.5f,-0.5f,  0.5f, 0.5f, 0.5f,  0.5f, 0.5f,-0.5f,
+                // bottom face
+                -0.5f,-0.5f,-0.5f,  0.5f,-0.5f,-0.5f,  0.5f,-0.5f, 0.5f,
+                -0.5f,-0.5f,-0.5f,  0.5f,-0.5f, 0.5f, -0.5f,-0.5f, 0.5f
+            };
+            VkDeviceSize bufferSize = sizeof(float) * vertices.size();
+            VkBufferCreateInfo bci{}; bci.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO; bci.size = bufferSize; bci.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT; bci.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            if (vkCreateBuffer(device, &bci, nullptr, &vertexBuffer) != VK_SUCCESS) throw std::runtime_error("failed create vertex buffer");
+            VkMemoryRequirements memReq; vkGetBufferMemoryRequirements(device, vertexBuffer, &memReq);
+            VkMemoryAllocateInfo mai{}; mai.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO; mai.allocationSize = memReq.size;
+            VkPhysicalDeviceMemoryProperties memProps; vkGetPhysicalDeviceMemoryProperties(physical, &memProps);
+            int memoryTypeIndex = -1;
+            for (uint32_t i = 0; i < memProps.memoryTypeCount; ++i) {
+                if ((memReq.memoryTypeBits & (1u << i)) && (memProps.memoryTypes[i].propertyFlags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) == (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
+                    memoryTypeIndex = (int)i; break;
+                }
+            }
+            if (memoryTypeIndex == -1) throw std::runtime_error("Failed to find memory type for vertex buffer");
+            mai.memoryTypeIndex = memoryTypeIndex;
+            if (vkAllocateMemory(device, &mai, nullptr, &vertexBufferMemory) != VK_SUCCESS) throw std::runtime_error("failed alloc vb mem");
+            vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
+            void* data; vkMapMemory(device, vertexBufferMemory, 0, bufferSize, 0, &data); memcpy(data, vertices.data(), (size_t)bufferSize); vkUnmapMemory(device, vertexBufferMemory);
+        }
 
         // Helper state that will be recreated with swapchain
         VkSwapchainKHR swapchain = VK_NULL_HANDLE;
@@ -176,7 +237,7 @@ int main() {
             for (size_t i=0;i<swapchainImageViews.size();++i){ VkImageView av = swapchainImageViews[i]; VkFramebufferCreateInfo fbci{}; fbci.sType=VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO; fbci.renderPass=renderPass; fbci.attachmentCount=1; fbci.pAttachments=&av; fbci.width=swapchainExtent.width; fbci.height=swapchainExtent.height; fbci.layers=1; if (vkCreateFramebuffer(device, &fbci, nullptr, &swapchainFramebuffers[i])!=VK_SUCCESS) throw std::runtime_error("failed fb"); }
 
             // command pool + buffers
-            VkCommandPoolCreateInfo cpci{}; cpci.sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO; cpci.queueFamilyIndex = graphicsFamily; if (commandPool!=VK_NULL_HANDLE) { vkDestroyCommandPool(device, commandPool, nullptr); commandPool = VK_NULL_HANDLE; }
+            VkCommandPoolCreateInfo cpci{}; cpci.sType=VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO; cpci.queueFamilyIndex = graphicsFamily; cpci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; if (commandPool!=VK_NULL_HANDLE) { vkDestroyCommandPool(device, commandPool, nullptr); commandPool = VK_NULL_HANDLE; }
             if (vkCreateCommandPool(device, &cpci, nullptr, &commandPool)!=VK_SUCCESS) throw std::runtime_error("cmd pool");
             commandBuffers.resize(swapchainFramebuffers.size());
             VkCommandBufferAllocateInfo cbai{}; cbai.sType=VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO; cbai.commandPool=commandPool; cbai.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY; cbai.commandBufferCount=(uint32_t)commandBuffers.size(); if (vkAllocateCommandBuffers(device, &cbai, commandBuffers.data())!=VK_SUCCESS) throw std::runtime_error("alloc cmds");
@@ -208,9 +269,11 @@ int main() {
         imagesInFlight.resize(commandBuffers.size(), VK_NULL_HANDLE);
         // Camera state for WASD movement
         glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 2.0f);
-        float camYaw = -90.0f; // looking toward -Z
         double lastTime = glfwGetTime();
         const float moveSpeed = 2.5f; // units per second
+        // enable mouse capture and callback
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwSetCursorPosCallback(window, cursor_pos_callback);
         
 
         size_t currentFrame = 0;
@@ -220,8 +283,13 @@ int main() {
             double now = glfwGetTime();
             float dt = float(now - lastTime);
             lastTime = now;
-            float yawRad = glm::radians(camYaw);
-            glm::vec3 forwardVec = glm::normalize(glm::vec3(cos(yawRad), 0.0f, sin(yawRad)));
+            float yawRad = glm::radians(g_camYaw);
+            float pitchRad = glm::radians(g_camPitch);
+            glm::vec3 forwardVec;
+            forwardVec.x = cos(pitchRad) * cos(yawRad);
+            forwardVec.y = sin(pitchRad);
+            forwardVec.z = cos(pitchRad) * sin(yawRad);
+            forwardVec = glm::normalize(forwardVec);
             glm::vec3 rightVec = glm::normalize(glm::cross(forwardVec, glm::vec3(0.0f,1.0f,0.0f)));
             if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camPos += forwardVec * moveSpeed * dt;
             if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camPos -= forwardVec * moveSpeed * dt;
@@ -250,12 +318,18 @@ int main() {
             vkResetFences(device,1,&inFlightFences[currentFrame]);
 
             // (re)record command buffer for this image with updated camera push-constants
-            vkResetCommandBuffer(commandBuffers[imageIndex], 0);
+            vkResetCommandPool(device, commandPool, 0);
             VkCommandBufferBeginInfo binfo{}; binfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO; binfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
             if (vkBeginCommandBuffer(commandBuffers[imageIndex], &binfo) != VK_SUCCESS) throw std::runtime_error("begin cb");
             VkRenderPassBeginInfo rpbi{}; rpbi.sType=VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO; rpbi.renderPass=renderPass; rpbi.framebuffer=swapchainFramebuffers[imageIndex]; rpbi.renderArea.offset={0,0}; rpbi.renderArea.extent=swapchainExtent; VkClearValue clearVal = { {{0.2f,0.6f,0.8f,1.0f}} }; rpbi.clearValueCount=1; rpbi.pClearValues=&clearVal;
             vkCmdBeginRenderPass(commandBuffers[imageIndex], &rpbi, VK_SUBPASS_CONTENTS_INLINE);
             vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+            // bind vertex buffer
+            {
+                VkBuffer vbs[] = { vertexBuffer };
+                VkDeviceSize offsets[] = { 0 };
+                vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, vbs, offsets);
+            }
 
             // compute MVP
             float aspect = (float)swapchainExtent.width / (float)swapchainExtent.height;
@@ -307,6 +381,8 @@ int main() {
         if (renderPass!=VK_NULL_HANDLE) vkDestroyRenderPass(device, renderPass, nullptr);
         if (commandPool!=VK_NULL_HANDLE) vkDestroyCommandPool(device, commandPool, nullptr);
         if (swapchain!=VK_NULL_HANDLE) vkDestroySwapchainKHR(device, swapchain, nullptr);
+        if (vertexBuffer != VK_NULL_HANDLE) { vkDestroyBuffer(device, vertexBuffer, nullptr); }
+        if (vertexBufferMemory != VK_NULL_HANDLE) { vkFreeMemory(device, vertexBufferMemory, nullptr); }
         vkDestroyDevice(device, nullptr);
         vkDestroySurfaceKHR(instance, surface, nullptr);
 #ifdef ENABLE_VALIDATION
