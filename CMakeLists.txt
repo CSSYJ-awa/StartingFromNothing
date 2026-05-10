@@ -26,6 +26,13 @@ add_subdirectory(external/glfw)
 add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/external/glm)
 
+# FreeType for font rendering
+set(FREETYPE_BUILD_DEMOS OFF CACHE BOOL "" FORCE)
+set(FREETYPE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(FREETYPE_BUILD_GZIP OFF CACHE BOOL "" FORCE)
+set(FREETYPE_BUILD_BZIP2 OFF CACHE BOOL "" FORCE)
+add_subdirectory(external/freetype)
+
 # Generate SPIR-V from GLSL shaders at configure time
 set(SHADERS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/shaders)
 set(SPVS_DIR ${CMAKE_BINARY_DIR}/shaders)
@@ -62,24 +69,16 @@ add_custom_command(
 
 add_custom_target(shaders_all DEPENDS ${GEN_INCLUDE_DIR}/vert_spv.h ${GEN_INCLUDE_DIR}/frag_spv.h)
 
-# Example executable named main (produce main.exe)
-add_executable(main src/main_triangle.cpp ${GEN_INCLUDE_DIR}/vert_spv.h ${GEN_INCLUDE_DIR}/frag_spv.h)
+# Voxel Sandbox Game - main executable (produce main.exe)
+add_executable(main src/voxel_game.cpp ${GEN_INCLUDE_DIR}/vert_spv.h ${GEN_INCLUDE_DIR}/frag_spv.h)
 add_dependencies(main shaders_all)
 # Ensure Vulkan headers are found
 target_include_directories(main PRIVATE "${VULKAN_SDK}/Include" "${GEN_INCLUDE_DIR}")
-# Link Vulkan and GLFW
-target_link_libraries(main PRIVATE Vulkan::Vulkan glfw glm)
+# Link Vulkan, GLFW, and FreeType
+target_link_libraries(main PRIVATE Vulkan::Vulkan glfw glm freetype)
 # Enable validation layers for debugging
 target_compile_definitions(main PRIVATE ENABLE_VALIDATION=1)
 set_target_properties(main PROPERTIES OUTPUT_NAME "main")
 
-# Voxel prototype target
-add_executable(voxel src/voxel_game.cpp ${GEN_INCLUDE_DIR}/vert_spv.h ${GEN_INCLUDE_DIR}/frag_spv.h)
-add_dependencies(voxel shaders_all)
-target_include_directories(voxel PRIVATE "${VULKAN_SDK}/Include" "${GEN_INCLUDE_DIR}")
-target_link_libraries(voxel PRIVATE Vulkan::Vulkan glfw glm)
-target_compile_definitions(voxel PRIVATE ENABLE_VALIDATION=1)
-set_target_properties(voxel PROPERTIES OUTPUT_NAME "voxel")
-
 # Install targets for convenience (optional)
-install(TARGETS main voxel RUNTIME DESTINATION bin)
+install(TARGETS main RUNTIME DESTINATION bin)
