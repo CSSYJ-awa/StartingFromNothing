@@ -42,6 +42,77 @@ constexpr float MOVE_SPEED = 5.0f;       // 移动速度
 FT_Library g_ftLibrary = nullptr;
 FT_Face g_ftFace = nullptr;
 
+// 将UTF-8字符转换为Unicode码点
+unsigned int utf8_to_unicode(const char* utf8_str) {
+    unsigned char c = (unsigned char)utf8_str[0];
+    unsigned int unicode = 0;
+    if (c < 0x80) {
+        unicode = c;
+    } else if ((c & 0xE0) == 0xC0) {
+        unicode = ((c & 0x1F) << 6) | (utf8_str[1] & 0x3F);
+    } else if ((c & 0xF0) == 0xE0) {
+        unicode = ((c & 0x0F) << 12) | ((utf8_str[1] & 0x3F) << 6) | (utf8_str[2] & 0x3F);
+    } else if ((c & 0xF8) == 0xF0) {
+        unicode = ((c & 0x07) << 18) | ((utf8_str[1] & 0x3F) << 12) | ((utf8_str[2] & 0x3F) << 6) | (utf8_str[3] & 0x3F);
+    }
+    return unicode;
+}
+
+// 渲染文字到顶点数据
+void renderTextToVertices(const char* text, float x, float y, float scale, std::vector<float>& vertices) {
+    if (!g_ftFace) return;
+    
+    const char* p = text;
+    float currentX = x;
+    
+    while (*p) {
+        unsigned int unicode = utf8_to_unicode(p);
+        FT_UInt glyph_index = FT_Get_Char_Index(g_ftFace, unicode);
+        
+        if (glyph_index == 0) {
+            p += (unicode < 0x80) ? 1 : (unicode < 0x800) ? 2 : (unicode < 0x10000) ? 3 : 4;
+            continue;
+        }
+        
+        if (FT_Load_Glyph(g_ftFace, glyph_index, FT_LOAD_RENDER)) {
+            p += (unicode < 0x80) ? 1 : (unicode < 0x800) ? 2 : (unicode < 0x10000) ? 3 : 4;
+            continue;
+        }
+        
+        FT_Bitmap* bitmap = &g_ftFace->glyph->bitmap;
+        FT_GlyphSlot slot = g_ftFace->glyph;
+        
+        int width = bitmap->width;
+        int height = bitmap->rows;
+        int pitch = bitmap->pitch;
+        
+        for (int row = 0; row < height; row++) {
+            for (int col = 0; col < width; col++) {
+                unsigned char pixel = bitmap->buffer[row * pitch + col];
+                if (pixel > 128) {
+                    float px = currentX + (col + slot->bitmap_left) * scale;
+                    float py = y - (row - (height - slot->bitmap_top)) * scale;
+                    float pw = scale;
+                    float ph = scale;
+                    
+                    // 白色文字，z=-0.1确保在按钮前面
+                    float v[] = {
+                        px, py + ph, -0.1f,   0.5f, 1.0f, 0.3f,   1.0f, 1.0f, 1.0f,
+                        px + pw, py + ph, -0.1f,   0.5f, 1.0f, 0.3f,   1.0f, 1.0f, 1.0f,
+                        px + pw, py, -0.1f,   0.5f, 1.0f, 0.3f,   1.0f, 1.0f, 1.0f,
+                        px, py + ph, -0.1f,   0.5f, 1.0f, 0.3f,   1.0f, 1.0f, 1.0f,
+                        px + pw, py, -0.1f,   0.5f, 1.0f, 0.3f,   1.0f, 1.0f, 1.0f,
+                        px, py, -0.1f,   0.5f, 1.0f, 0.3f,   1.0f, 1.0f, 1.0f
+                    };
+                    vertices.insert(vertices.end(), v, v + sizeof(v)/sizeof(float));
+                }
+            }
+        }
+        
+        currentX += slot->advance.x / 64.0f * scale;
+        p += (unicode < 0x80) ? 1 : (unicode < 0x800) ? 2 : (unicode < 0x10000) ? 3 : 4;
+    }
+}
 
 
 // =============================================================================
@@ -1366,40 +1437,46 @@ int main() {
                 // 渲染菜单按钮 - 使用一个简单的红色方块
                 vkCmdBindPipeline(commandBuffers[imageIndex], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
                 
-                // 创建按钮顶点数据
-                float menuVertices[] = {
-                    // 按钮背景（红色方块）
+                // 先渲染按钮背景（红色方块）
+                std::vector<float> btnVertices = {
                     -0.3f,  0.15f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.2f, 0.2f,
                      0.3f,  0.15f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.2f, 0.2f,
                      0.3f, -0.15f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.2f, 0.2f,
                     -0.3f,  0.15f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.2f, 0.2f,
                      0.3f, -0.15f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.2f, 0.2f,
-                    -0.3f, -0.15f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.2f, 0.2f,
-                    // "退出"文字（白色）- 使用简单的线段
-                    -0.15f,  0.05f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f, 1.0f,
-                    -0.05f,  0.05f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f, 1.0f,
-                    -0.15f, -0.05f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f, 1.0f,
-                    -0.05f, -0.05f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f, 1.0f,
-                    // "游戏"文字（白色）
-                     0.05f,  0.05f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f, 1.0f,
-                     0.15f,  0.05f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f, 1.0f,
-                     0.05f, -0.05f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f, 1.0f,
-                     0.15f, -0.05f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f, 1.0f
+                    -0.3f, -0.15f, 0.0f,   0.0f, 0.0f, 1.0f,   1.0f, 0.2f, 0.2f
                 };
                 
                 // 更新顶点缓冲区内容
                 void* data;
                 vkMapMemory(device, vertexBufferMemory, 0, bufferSize, 0, &data);
-                memcpy(data, menuVertices, sizeof(menuVertices));
+                size_t copySize = std::min(btnVertices.size() * sizeof(float), bufferSize);
+                memcpy(data, btnVertices.data(), copySize);
                 vkUnmapMemory(device, vertexBufferMemory);
                 
-                VkDeviceSize menuOffsets[] = {0};
-                vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, &vertexBuffer, menuOffsets);
+                VkDeviceSize btnOffsets[] = {0};
+                vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, &vertexBuffer, btnOffsets);
                 
                 // 使用恒等矩阵（按钮已经在NDC坐标中）
                 glm::mat4 mvp = glm::mat4(1.0f);
                 vkCmdPushConstants(commandBuffers[imageIndex], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mvp), &mvp);
-                vkCmdDraw(commandBuffers[imageIndex], 14, 1, 0, 0);
+                vkCmdDraw(commandBuffers[imageIndex], static_cast<uint32_t>(btnVertices.size() / 9), 1, 0, 0);
+                
+                // 再渲染文字（使用FreeType）
+                std::vector<float> textVertices;
+                renderTextToVertices("EXIT", -0.15f, 0.03f, 0.02f, textVertices);
+                
+                // 更新顶点缓冲区内容
+                vkMapMemory(device, vertexBufferMemory, 0, bufferSize, 0, &data);
+                copySize = std::min(textVertices.size() * sizeof(float), bufferSize);
+                memcpy(data, textVertices.data(), copySize);
+                vkUnmapMemory(device, vertexBufferMemory);
+                
+                VkDeviceSize textOffsets[] = {0};
+                vkCmdBindVertexBuffers(commandBuffers[imageIndex], 0, 1, &vertexBuffer, textOffsets);
+                
+                vkCmdPushConstants(commandBuffers[imageIndex], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(mvp), &mvp);
+                vkCmdDraw(commandBuffers[imageIndex], static_cast<uint32_t>(textVertices.size() / 9), 1, 0, 0);
                 
                 vkCmdEndRenderPass(commandBuffers[imageIndex]);
                 
