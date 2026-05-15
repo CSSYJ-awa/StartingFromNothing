@@ -69,11 +69,37 @@ add_custom_command(
 
 add_custom_target(shaders_all DEPENDS ${GEN_INCLUDE_DIR}/vert_spv.h ${GEN_INCLUDE_DIR}/frag_spv.h)
 
+# UI module sources
+set(UI_SOURCES
+    src/ui/Widget.h
+    src/ui/Screen.h
+    src/ui/Button.h
+    src/ui/Label.h
+    src/ui/Panel.h
+    src/ui/UIRenderer.h
+    src/ui/UIManager.h
+    src/ui/MainMenuScreen.h
+    src/ui/Screen.cpp
+    src/ui/Button.cpp
+    src/ui/Label.cpp
+    src/ui/Panel.cpp
+    src/ui/UIRenderer.cpp
+    src/ui/UIManager.cpp
+    src/ui/MainMenuScreen.cpp
+    src/ui/UI.h
+)
+
 # Voxel Sandbox Game - main executable (produce main.exe)
-add_executable(main src/voxel_game.cpp ${GEN_INCLUDE_DIR}/vert_spv.h ${GEN_INCLUDE_DIR}/frag_spv.h)
+add_executable(main src/voxel_game.cpp ${UI_SOURCES} ${GEN_INCLUDE_DIR}/vert_spv.h ${GEN_INCLUDE_DIR}/frag_spv.h)
 add_dependencies(main shaders_all)
 # Ensure Vulkan headers are found
-target_include_directories(main PRIVATE "${VULKAN_SDK}/Include" "${GEN_INCLUDE_DIR}")
+target_include_directories(main PRIVATE 
+    "${VULKAN_SDK}/Include" 
+    "${GEN_INCLUDE_DIR}" 
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/external/freetype/include"
+    "${CMAKE_CURRENT_BINARY_DIR}/external/freetype/include"
+)
 # Link Vulkan, GLFW, and FreeType
 target_link_libraries(main PRIVATE Vulkan::Vulkan glfw glm freetype)
 # Enable validation layers for debugging
