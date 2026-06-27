@@ -71,7 +71,13 @@ int main()
         std::cerr << "[错误] " << e.what() << std::endl;
         return EXIT_FAILURE;
     }
+    catch (...)
+    {
+        std::cerr << "[错误] 未知异常" << std::endl;
+        return EXIT_FAILURE;
+    }
 
     std::cout << "[VulkanApp] 程序正常退出。" << std::endl;
+    return EXIT_SUCCESS;
     return EXIT_SUCCESS;
 }

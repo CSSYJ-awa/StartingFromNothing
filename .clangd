@@ -1,0 +1,7 @@
+CompileFlags:
+  Add:
+    - "-DVK_USE_PLATFORM_WIN32_KHR"
+    - "-ID:\CSSYJ\Projects\StartingFromNothing\src"
+    - "-ID:\Program Files\msys64\mingw64\include"
+    - "-ID:\Program Files\VulkanSDK\1.4.341.1\include"
+    - "-std=c++17"

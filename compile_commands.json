@@ -1,0 +1,56 @@
+[
+{
+  "directory": "D:/CSSYJ/Projects/StartingFromNothing/build",
+  "command": "\"D:\\Program Files\\msys64\\ucrt64\\bin\\g++.exe\" -DVK_USE_PLATFORM_WIN32_KHR -ID:\\CSSYJ\\Projects\\StartingFromNothing\\src -I\"D:\\Program Files\\msys64\\mingw64\\include\" -isystem \"D:\\Program Files\\VulkanSDK\\1.4.341.1\\include\" -g -std=c++17 -o CMakeFiles\\VulkanApp.dir\\src\\main.cpp.obj -c D:\\CSSYJ\\Projects\\StartingFromNothing\\src\\main.cpp",
+  "file": "D:/CSSYJ/Projects/StartingFromNothing/src/main.cpp",
+  "output": "CMakeFiles/VulkanApp.dir/src/main.cpp.obj"
+},
+{
+  "directory": "D:/CSSYJ/Projects/StartingFromNothing/build",
+  "command": "\"D:\\Program Files\\msys64\\ucrt64\\bin\\g++.exe\" -DVK_USE_PLATFORM_WIN32_KHR -ID:\\CSSYJ\\Projects\\StartingFromNothing\\src -I\"D:\\Program Files\\msys64\\mingw64\\include\" -isystem \"D:\\Program Files\\VulkanSDK\\1.4.341.1\\include\" -g -std=c++17 -o CMakeFiles\\VulkanApp.dir\\src\\vulkan_app.cpp.obj -c D:\\CSSYJ\\Projects\\StartingFromNothing\\src\\vulkan_app.cpp",
+  "file": "D:/CSSYJ/Projects/StartingFromNothing/src/vulkan_app.cpp",
+  "output": "CMakeFiles/VulkanApp.dir/src/vulkan_app.cpp.obj"
+},
+{
+  "directory": "D:/CSSYJ/Projects/StartingFromNothing/build",
+  "command": "\"D:\\Program Files\\msys64\\ucrt64\\bin\\g++.exe\" -DVK_USE_PLATFORM_WIN32_KHR -ID:\\CSSYJ\\Projects\\StartingFromNothing\\src -I\"D:\\Program Files\\msys64\\mingw64\\include\" -isystem \"D:\\Program Files\\VulkanSDK\\1.4.341.1\\include\" -g -std=c++17 -o CMakeFiles\\VulkanApp.dir\\src\\chunk.cpp.obj -c D:\\CSSYJ\\Projects\\StartingFromNothing\\src\\chunk.cpp",
+  "file": "D:/CSSYJ/Projects/StartingFromNothing/src/chunk.cpp",
+  "output": "CMakeFiles/VulkanApp.dir/src/chunk.cpp.obj"
+},
+{
+  "directory": "D:/CSSYJ/Projects/StartingFromNothing/build",
+  "command": "\"D:\\Program Files\\msys64\\ucrt64\\bin\\g++.exe\" -DVK_USE_PLATFORM_WIN32_KHR -ID:\\CSSYJ\\Projects\\StartingFromNothing\\src -I\"D:\\Program Files\\msys64\\mingw64\\include\" -isystem \"D:\\Program Files\\VulkanSDK\\1.4.341.1\\include\" -g -std=c++17 -o CMakeFiles\\VulkanApp.dir\\src\\octree.cpp.obj -c D:\\CSSYJ\\Projects\\StartingFromNothing\\src\\octree.cpp",
+  "file": "D:/CSSYJ/Projects/StartingFromNothing/src/octree.cpp",
+  "output": "CMakeFiles/VulkanApp.dir/src/octree.cpp.obj"
+},
+{
+  "directory": "D:/CSSYJ/Projects/StartingFromNothing/build",
+  "command": "\"D:\\Program Files\\msys64\\ucrt64\\bin\\g++.exe\" -DVK_USE_PLATFORM_WIN32_KHR -ID:\\CSSYJ\\Projects\\StartingFromNothing\\src -I\"D:\\Program Files\\msys64\\mingw64\\include\" -isystem \"D:\\Program Files\\VulkanSDK\\1.4.341.1\\include\" -g -std=c++17 -o CMakeFiles\\VulkanApp.dir\\src\\terrain_generator.cpp.obj -c D:\\CSSYJ\\Projects\\StartingFromNothing\\src\\terrain_generator.cpp",
+  "file": "D:/CSSYJ/Projects/StartingFromNothing/src/terrain_generator.cpp",
+  "output": "CMakeFiles/VulkanApp.dir/src/terrain_generator.cpp.obj"
+},
+{
+  "directory": "D:/CSSYJ/Projects/StartingFromNothing/build",
+  "command": "\"D:\\Program Files\\msys64\\ucrt64\\bin\\g++.exe\" -DVK_USE_PLATFORM_WIN32_KHR -ID:\\CSSYJ\\Projects\\StartingFromNothing\\src -I\"D:\\Program Files\\msys64\\mingw64\\include\" -isystem \"D:\\Program Files\\VulkanSDK\\1.4.341.1\\include\" -g -std=c++17 -o CMakeFiles\\VulkanApp.dir\\src\\player.cpp.obj -c D:\\CSSYJ\\Projects\\StartingFromNothing\\src\\player.cpp",
+  "file": "D:/CSSYJ/Projects/StartingFromNothing/src/player.cpp",
+  "output": "CMakeFiles/VulkanApp.dir/src/player.cpp.obj"
+},
+{
+  "directory": "D:/CSSYJ/Projects/StartingFromNothing/build",
+  "command": "\"D:\\Program Files\\msys64\\ucrt64\\bin\\g++.exe\" -DVK_USE_PLATFORM_WIN32_KHR -ID:\\CSSYJ\\Projects\\StartingFromNothing\\src -I\"D:\\Program Files\\msys64\\mingw64\\include\" -isystem \"D:\\Program Files\\VulkanSDK\\1.4.341.1\\include\" -g -std=c++17 -o CMakeFiles\\VulkanApp.dir\\src\\world.cpp.obj -c D:\\CSSYJ\\Projects\\StartingFromNothing\\src\\world.cpp",
+  "file": "D:/CSSYJ/Projects/StartingFromNothing/src/world.cpp",
+  "output": "CMakeFiles/VulkanApp.dir/src/world.cpp.obj"
+},
+{
+  "directory": "D:/CSSYJ/Projects/StartingFromNothing/build",
+  "command": "\"D:\\Program Files\\msys64\\ucrt64\\bin\\g++.exe\" -DVK_USE_PLATFORM_WIN32_KHR -ID:\\CSSYJ\\Projects\\StartingFromNothing\\src -I\"D:\\Program Files\\msys64\\mingw64\\include\" -isystem \"D:\\Program Files\\VulkanSDK\\1.4.341.1\\include\" -g -std=c++17 -o CMakeFiles\\VulkanApp.dir\\src\\optimization_manager.cpp.obj -c D:\\CSSYJ\\Projects\\StartingFromNothing\\src\\optimization_manager.cpp",
+  "file": "D:/CSSYJ/Projects/StartingFromNothing/src/optimization_manager.cpp",
+  "output": "CMakeFiles/VulkanApp.dir/src/optimization_manager.cpp.obj"
+},
+{
+  "directory": "D:/CSSYJ/Projects/StartingFromNothing/build",
+  "command": "\"D:\\Program Files\\msys64\\ucrt64\\bin\\g++.exe\" -DVK_USE_PLATFORM_WIN32_KHR -ID:\\CSSYJ\\Projects\\StartingFromNothing\\src -I\"D:\\Program Files\\msys64\\mingw64\\include\" -isystem \"D:\\Program Files\\VulkanSDK\\1.4.341.1\\include\" -g -std=c++17 -o CMakeFiles\\VulkanApp.dir\\src\\render_engine.cpp.obj -c D:\\CSSYJ\\Projects\\StartingFromNothing\\src\\render_engine.cpp",
+  "file": "D:/CSSYJ/Projects/StartingFromNothing/src/render_engine.cpp",
+  "output": "CMakeFiles/VulkanApp.dir/src/render_engine.cpp.obj"
+}
+]

@@ -131,10 +131,61 @@ else()
 endif()
 
 # ============================================================================
-# 可执行文件
+# 着色器编译（自定义命令）
 # ============================================================================
-file(GLOB_RECURSE SOURCES "src/*.cpp")
-add_executable(${PROJECT_NAME} ${SOURCES})
+# 查找 glslc 编译器（Vulkan SDK 的一部分）
+find_program(GLSLC_EXECUTABLE
+    NAMES glslc
+    PATHS "$ENV{VULKAN_SDK}/Bin"
+    DOC "Vulkan GLSL 编译器 (glslc)"
+)
+
+# 着色器源文件（使用标准扩展名 .vert / .frag 以便 glslc 识别着色器阶段）
+set(SHADER_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/shaders/vertex.vert"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shaders/fragment.frag"
+    "${CMAKE_CURRENT_SOURCE_DIR}/shaders/cull.comp"
+)
+
+# 为每个着色器创建编译命令
+foreach(SHADER ${SHADER_SOURCES})
+    # 生成 .spv 路径（在源目录的 shaders/ 下）
+    get_filename_component(SHADER_DIR ${SHADER} DIRECTORY)
+    get_filename_component(SHADER_NAME ${SHADER} NAME_WE)
+    set(SPV_FILE "${SHADER_DIR}/${SHADER_NAME}.spv")
+
+    if(GLSLC_EXECUTABLE)
+        add_custom_command(
+            OUTPUT ${SPV_FILE}
+            COMMAND ${GLSLC_EXECUTABLE} "${SHADER}" -o "${SPV_FILE}"
+            DEPENDS "${SHADER}"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            COMMENT "编译着色器: ${SHADER} → ${SPV_FILE}"
+            VERBATIM
+        )
+        list(APPEND GENERATED_SPV_FILES ${SPV_FILE})
+    else()
+        message(WARNING "glslc 未找到，着色器 ${SHADER} 将不会被编译。"
+                        "请安装 Vulkan SDK 或手动运行 shaders/compile_shaders.bat")
+    endif()
+endforeach()
+
+# ============================================================================
+# 可执行文件（显式列出所有源文件，而不是 GLOB）
+# ============================================================================
+set(SOURCES
+    src/main.cpp
+    src/vulkan_app.cpp
+    src/chunk.cpp
+    src/octree.cpp
+    src/terrain_generator.cpp
+    src/player.cpp
+    src/world.cpp
+    src/optimization_manager.cpp
+    src/render_engine.cpp
+)
+
+add_executable(${PROJECT_NAME} ${SOURCES} ${GENERATED_SPV_FILES})
 
 # 可执行文件输出到 bin/
 set_target_properties(${PROJECT_NAME} PROPERTIES
@@ -171,15 +222,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     gdi32                   # 3. Windows GDI（GLFW 静态库依赖）
     opengl32                # 4. OpenGL（GLFW 静态库依赖）
     m                       # 5. 数学库
+    pthread                 # 6. 线程库（std::thread）
 )
 
 # --- 编译定义 ---
-# GLFW_INCLUDE_NONE: 禁止 GLFW 自动包含 OpenGL 头文件，
-# 避免与 Vulkan 的 vk_platform.h 产生类型重定义冲突（MinGW 常见问题）。
-# 使用 Vulkan 时应在源码中显式 #include <vulkan/vulkan.h>。
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     VK_USE_PLATFORM_WIN32_KHR
-    GLFW_INCLUDE_NONE
 )
 
 # ============================================================================
@@ -187,6 +235,13 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 # 运行时使用 C:\Windows\System32\vulkan-1.dll（显卡驱动安装，ABI 稳定），
 # 无需复制。详情见 docs/VULKAN_MINGW_SETUP.md。
 # ============================================================================
+
+# ============================================================================
+# clangd IntelliSense: 禁用响应文件，使 include 路径直接写入
+# compile_commands.json，解决 clangd 无法解析 @file.rsp 的问题。
+# ============================================================================
+set(CMAKE_CXX_USE_RESPONSE_FILE_FOR_INCLUDES OFF)
+set(CMAKE_CXX_USE_RESPONSE_FILE_FOR_OBJECTS OFF)
 
 # ============================================================================
 # 生成 compile_commands.json（供 IntelliSense / clangd 使用）

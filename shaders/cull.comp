@@ -1,0 +1,153 @@
+#version 450
+#extension GL_EXT_shader_16bit_storage : enable
+#extension GL_EXT_shader_explicit_arithmetic_types : enable
+
+/**
+ * cull.comp —— GPU 驱动的视锥体 + 遮挡剔除 Compute Shader
+ *
+ * 对每个区块的 AABB 执行：
+ * 1. 视锥体测试（6 平面）
+ * 2. Hi-Z 深度金字塔遮挡测试
+ *
+ * 输出 visibleFlags[] 供 Indirect Draw 使用。
+ */
+
+layout(local_size_x = 64) in;
+
+// ---- 视锥体参数 ----
+struct Plane { vec4 equation; }; // equation.xyz = normal, equation.w = distance
+layout(binding = 0, std140) uniform FrustumUBO {
+    Plane planes[6];
+    mat4 viewProj;
+    ivec2 screenSize;
+    float minDepth;     // 最小深度（近平面）
+    float _pad[3];
+} frustum;
+
+// ---- 区块 AABB 列表 ----
+struct ChunkAABB {
+    vec3 min;
+    float _pad0;
+    vec3 max;
+    float _pad1;
+    uint chunkIndex;    // 指向全局 chunk 数据
+};
+layout(binding = 1, std430) readonly buffer AABBBuffer {
+    ChunkAABB aabbs[];
+};
+
+// ---- 可见性输出 ----
+layout(binding = 2, std430) writeonly buffer VisibleBuffer {
+    uint visibleFlags[];
+};
+
+// ---- Hi-Z 深度金字塔 ----
+layout(binding = 3) uniform sampler2D hizTexture;
+
+// ============================================================================
+// AABB 视锥体测试
+// 返回 true 表示 AABB 与视锥体相交（可见）
+// ============================================================================
+bool testFrustum(vec3 aabbMin, vec3 aabbMax)
+{
+    for (int i = 0; i < 6; ++i)
+    {
+        vec3 normal = frustum.planes[i].equation.xyz;
+        float dist  = frustum.planes[i].equation.w;
+
+        // P-vertex：选择 AABB 中沿法线最远的顶点
+        vec3 pVertex = mix(aabbMin, aabbMax, step(0.0, normal));
+        if (dot(normal, pVertex) < dist)
+            return false; // AABB 完全在平面外
+    }
+    return true;
+}
+
+// ============================================================================
+// 投影 AABB 到屏幕空间，返回屏幕包围盒和最小深度
+// ============================================================================
+void projectAABB(vec3 aabbMin, vec3 aabbMax,
+                 out vec2 screenMin, out vec2 screenMax,
+                 out float depthMin)
+{
+    // 计算 8 个角点的投影
+    vec4 corners[8];
+    float minX = 1e9, maxX = -1e9;
+    float minY = 1e9, maxY = -1e9;
+    depthMin = 1e9;
+
+    for (int i = 0; i < 8; ++i)
+    {
+        vec3 corner = mix(aabbMin, aabbMax,
+            vec3(float((i >> 0) & 1), float((i >> 1) & 1), float((i >> 2) & 1)));
+        vec4 clip = frustum.viewProj * vec4(corner, 1.0);
+        vec3 ndc = clip.xyz / clip.w; // [-1,1]
+
+        minX = min(minX, ndc.x); maxX = max(maxX, ndc.x);
+        minY = min(minY, ndc.y); maxY = max(maxY, ndc.y);
+        depthMin = min(depthMin, ndc.z);
+    }
+
+    // 转换到 [0,1] UV 空间
+    screenMin = vec2(minX, minY) * 0.5 + 0.5;
+    screenMax = vec2(maxX, maxY) * 0.5 + 0.5;
+
+    // 钳制到屏幕范围
+    screenMin = clamp(screenMin, 0.0, 1.0);
+    screenMax = clamp(screenMax, 0.0, 1.0);
+}
+
+// ============================================================================
+// Hi-Z 遮挡测试
+// 返回 true 表示区块可见（未被遮挡）
+// ============================================================================
+bool testOcclusion(vec2 screenMin, vec2 screenMax, float depthMin)
+{
+    ivec2 texSize = textureSize(hizTexture, 0);
+
+    // 计算需要采样的 mip 级别
+    vec2 screenSize = screenMax - screenMin;
+    float maxScreenSize = max(screenSize.x * texSize.x, screenSize.y * texSize.y);
+    int mipLevel = int(log2(max(maxScreenSize, 1.0)));
+
+    // 钳制 mip 级别
+    int maxMip = int(log2(max(texSize.x, texSize.y)));
+    mipLevel = min(mipLevel, maxMip);
+
+    // 在对应 mip 级别采样
+    vec2 samplePos = (screenMin + screenMax) * 0.5;
+    float sampledDepth = textureLod(hizTexture, samplePos, mipLevel).r;
+
+    // 如果区块的最小深度大于深度缓冲中的值，则被遮挡
+    return depthMin <= sampledDepth + 0.001;
+}
+
+// ============================================================================
+// 主函数
+// ============================================================================
+void main()
+{
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= aabbs.length())
+    {
+        visibleFlags[idx] = 0;
+        return;
+    }
+
+    ChunkAABB aabb = aabbs[idx];
+    bool visible = true;
+
+    // 1) 视锥体测试
+    visible = testFrustum(aabb.min, aabb.max);
+
+    // 2) Hi-Z 遮挡测试
+    if (visible)
+    {
+        vec2 screenMin, screenMax;
+        float depthMin;
+        projectAABB(aabb.min, aabb.max, screenMin, screenMax, depthMin);
+        visible = testOcclusion(screenMin, screenMax, depthMin);
+    }
+
+    visibleFlags[idx] = visible ? 1 : 0;
+}
