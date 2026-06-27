@@ -1,0 +1,22 @@
+# --- 构建输出 ---
+build/
+bin/
+
+# --- IDE ---
+.vs/
+.vscode/
+*.user
+*.suo
+
+# --- 编译中间文件 ---
+*.o
+*.obj
+*.exe
+*.out
+*.app
+
+# --- 资源缓存 ---
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
